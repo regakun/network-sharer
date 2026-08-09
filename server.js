@@ -244,6 +244,20 @@ app.post('/api/text', (req, res) => {
   res.json({ success: true, snippet });
 });
 
+// API: Graceful Shutdown
+app.post('/api/shutdown', (req, res) => {
+  res.json({ success: true, message: 'Server is shutting down...' });
+  broadcastEvent('server_shutdown', { message: 'Server stopped' });
+
+  console.log('\n[Shutdown] Requested via Web UI / API. Closing server...');
+  setTimeout(() => {
+    server.close(() => {
+      console.log('[Shutdown] Server closed cleanly. Port released.');
+      process.exit(0);
+    });
+  }, 500);
+});
+
 // Fallback to static SPA
 app.get('*', (req, res) => {
   res.sendFile(path.join(PUBLIC_DIR, 'index.html'));
@@ -256,11 +270,11 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
   const serverUrl = `http://${primaryIp}:${PORT}`;
 
   console.log('\n==================================================');
-  console.log(` 🚀 NETWORK SHARER ACTIVE (Listening on 0.0.0.0:${PORT})`);
-  console.log(` 📱 Scan QR Code with iPhone Camera to start:`);
-  console.log(` 🔗 Local PC URL: http://localhost:${PORT}`);
+  console.log(` NETWORK SHARER ACTIVE (Listening on 0.0.0.0:${PORT})`);
+  console.log(` Scan QR Code with iPhone Camera to start:`);
+  console.log(` Local PC URL: http://localhost:${PORT}`);
   allIps.forEach(ip => {
-    console.log(` 🌐 Network URL (${ip.name}): http://${ip.address}:${PORT}`);
+    console.log(` Network URL (${ip.name}): http://${ip.address}:${PORT}`);
   });
   console.log('==================================================\n');
 
@@ -271,5 +285,18 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
     console.log(`Scan or open: ${serverUrl}`);
   }
 });
+
+// Handle Ctrl+C and process termination signals
+function gracefulExit(signal) {
+  console.log(`\n[Shutdown] Received ${signal}. Closing server...`);
+  broadcastEvent('server_shutdown', { message: 'Server stopped' });
+  server.close(() => {
+    console.log('[Shutdown] Server closed cleanly. Port released.');
+    process.exit(0);
+  });
+}
+
+process.on('SIGINT', () => gracefulExit('SIGINT'));
+process.on('SIGTERM', () => gracefulExit('SIGTERM'));
 
 module.exports = { app, server };

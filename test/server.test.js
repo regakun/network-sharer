@@ -59,7 +59,7 @@ function buildMultipart(fields, files) {
 }
 
 async function runTests() {
-  console.log('🧪 Starting Network Sharer Integration Self-Check...\n');
+  console.log('Starting Network Sharer Integration Self-Check...\n');
 
   try {
     // 1. Check Server Info API
@@ -68,7 +68,7 @@ async function runTests() {
     assert.strictEqual(infoRes.status, 200, 'GET /api/info should return 200');
     assert.ok(infoRes.json.localIp, 'Should contain localIp');
     assert.ok(infoRes.json.qrCodeDataUrl, 'Should contain QR code data URL');
-    console.log('   ✅ Local IP detected:', infoRes.json.localIp);
+    console.log('   [OK] Local IP detected:', infoRes.json.localIp);
 
     // 2. Test Text Snippet Sharing API
     console.log('2. Testing POST /api/text and GET /api/text...');
@@ -79,7 +79,7 @@ async function runTests() {
     const getTextsRes = await request('GET', '/api/text');
     assert.strictEqual(getTextsRes.status, 200);
     assert.ok(getTextsRes.json.some(t => t.text === 'Hello from iPhone to PC!'), 'Should retrieve saved text');
-    console.log('   ✅ Text note snippet shared successfully');
+    console.log('   [OK] Text note snippet shared successfully');
 
     // 3. Test File Upload API
     console.log('3. Testing POST /api/upload...');
@@ -97,32 +97,32 @@ async function runTests() {
     const uploadedFile = uploadRes.json.files[0];
     assert.strictEqual(uploadedFile.isImage, true);
     assert.strictEqual(uploadedFile.originalName, 'test_photo.jpg');
-    console.log('   ✅ Photo file uploaded successfully:', uploadedFile.filename);
+    console.log('   [OK] Photo file uploaded successfully:', uploadedFile.filename);
 
     // 4. Test List Files API
     console.log('4. Testing GET /api/files...');
     const listRes = await request('GET', '/api/files');
     assert.strictEqual(listRes.status, 200);
     assert.ok(listRes.json.some(f => f.filename === uploadedFile.filename), 'File list should contain uploaded file');
-    console.log('   ✅ Uploaded file retrieved in list');
+    console.log('   [OK] Uploaded file retrieved in list');
 
     // 5. Test File Download API
     console.log('5. Testing GET /api/files/:filename...');
     const downloadRes = await request('GET', uploadedFile.url);
     assert.strictEqual(downloadRes.status, 200);
     assert.strictEqual(downloadRes.data.length, dummyImageContent.length, 'Downloaded content length should match uploaded file');
-    console.log('   ✅ File content downloaded and verified');
+    console.log('   [OK] File content downloaded and verified');
 
     // 6. Test File Deletion API
     console.log('6. Testing DELETE /api/files/:filename...');
     const deleteRes = await request('DELETE', `/api/files/${encodeURIComponent(uploadedFile.filename)}`);
     assert.strictEqual(deleteRes.status, 200);
     assert.strictEqual(deleteRes.json.success, true);
-    console.log('   ✅ File deleted successfully');
+    console.log('   [OK] File deleted successfully');
 
-    console.log('\n🎉 ALL INTEGRATION SELF-CHECKS PASSED SUCCESSFULLY!\n');
+    console.log('\nALL INTEGRATION SELF-CHECKS PASSED SUCCESSFULLY!\n');
   } catch (err) {
-    console.error('\n❌ Test Failure:', err);
+    console.error('\nTest Failure:', err);
     process.exitCode = 1;
   } finally {
     server.close();

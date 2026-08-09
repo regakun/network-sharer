@@ -128,7 +128,12 @@ body {
   background: var(--success-color);
   box-shadow: 0 0 8px var(--success-color);
 }
-.qr-trigger-btn {
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qr-trigger-btn, .stop-server-btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -146,6 +151,51 @@ body {
 .qr-trigger-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: var(--primary-accent);
+}
+.stop-server-btn:hover {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+/* Shutdown Overlay */
+.shutdown-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.shutdown-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 13, 22, 0.95);
+  backdrop-filter: var(--glass-blur);
+}
+.shutdown-card {
+  position: relative;
+  z-index: 10;
+  text-align: center;
+  padding: 40px;
+  max-width: 420px;
+  border-radius: var(--radius-lg);
+  background: #111827;
+  border: 1px solid var(--danger-color);
+  box-shadow: var(--shadow-main);
+}
+.shutdown-icon {
+  color: var(--danger-color);
+  margin-bottom: 16px;
+}
+.shutdown-card h2 {
+  font-size: 1.3rem;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+.shutdown-card p {
+  font-size: 0.9rem;
+  color: var(--text-muted);
 }
 
 /* Main Content */

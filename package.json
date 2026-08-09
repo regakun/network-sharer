@@ -5,6 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "stop": "node -e \"fetch('http://localhost:3000/api/shutdown',{method:'POST'}).catch(()=>{})\"",
     "test": "node test/server.test.js"
   },
   "dependencies": {
