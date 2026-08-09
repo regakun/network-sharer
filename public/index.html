@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Network Sharer - iPhone to PC Sharing</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Viewport Drag & Drop Overlay -->
+    <div id="dropOverlay" class="drop-overlay hidden">
+      <div class="drop-modal">
+        <div class="drop-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <h3>Drop files here</h3>
+        <p>Instant upload to connected devices</p>
+      </div>
+    </div>
+
+    <!-- Header Bar -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <h1>Network Sharer</h1>
+          <div class="status-badge" id="statusBadge">
+            <span class="status-dot"></span>
+            <span id="ipDisplay" class="ip-text">Connecting...</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="header-actions">
+        <button id="openQrBtn" class="qr-trigger-btn" title="Scan QR Code to Pair iPhone">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          <span>Pair Device</span>
+        </button>
+
+        <button id="stopServerBtn" class="stop-server-btn" title="Stop Network Sharer Server">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+            <line x1="12" y1="2" x2="12" y2="12"/>
+          </svg>
+          <span>Stop Server</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Filter Bar & Stats -->
+      <section class="controls-section">
+        <div class="filter-tabs">
+          <button class="tab-btn active" data-filter="all">All</button>
+          <button class="tab-btn" data-filter="media">Photos & Videos</button>
+          <button class="tab-btn" data-filter="files">Files</button>
+          <button class="tab-btn" data-filter="text">Notes</button>
+        </div>
+        <div class="item-count" id="itemCount">0 items shared</div>
+      </section>
+
+      <!-- Shared Items Gallery / Feed -->
+      <section class="gallery-section">
+        <div id="emptyState" class="empty-state">
+          <div class="empty-illustration">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/>
+              <line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <h2>No shared items yet</h2>
+          <p>Tap the buttons below on iPhone or drag & drop files on PC to start sharing instantly!</p>
+        </div>
+
+        <div id="mediaGrid" class="media-grid"></div>
+      </section>
+    </main>
+
+    <!-- WhatsApp / Instagram Style Bottom Media Dock -->
+    <footer class="dock-footer">
+      <!-- Hidden Native File Inputs -->
+      <input type="file" id="photoInput" accept="image/*,video/*" multiple class="hidden-input">
+      <input type="file" id="cameraInput" accept="image/*,video/*" capture="environment" class="hidden-input">
+      <input type="file" id="fileInput" multiple class="hidden-input">
+
+      <div class="dock-container">
+        <!-- Quick Attachment Actions -->
+        <div class="attachment-actions">
+          <button type="button" id="btnPickPhoto" class="dock-action-btn media-action" title="Photos & Videos">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="4"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <path d="M21 15l-5-5L5 21"/>
+            </svg>
+          </button>
+          
+          <button type="button" id="btnPickCamera" class="dock-action-btn camera-action" title="Take Photo/Video">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </button>
+
+          <button type="button" id="btnPickFile" class="dock-action-btn file-action" title="Any File">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Text / Clipboard Input Box -->
+        <div class="text-input-wrapper">
+          <input type="text" id="textShareInput" placeholder="Send text note or link..." autocomplete="off">
+          <button type="button" id="btnSendText" class="send-text-btn" title="Send Text">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Instagram / WhatsApp Media Composer Modal -->
+    <div id="composerModal" class="composer-modal hidden">
+      <div class="composer-backdrop"></div>
+      <div class="composer-card">
+        <div class="composer-header">
+          <div class="composer-title">
+            <span id="composerCountBadge" class="badge">0 selected</span>
+            <h3>Send to PC</h3>
+          </div>
+          <button id="closeComposerBtn" class="icon-close-btn">&times;</button>
+        </div>
+
+        <!-- Scrollable Selected Thumbnails Tray -->
+        <div class="composer-tray-wrapper">
+          <div id="composerTray" class="composer-tray"></div>
+        </div>
+
+        <!-- Optional Caption Input -->
+        <div class="composer-caption-box">
+          <input type="text" id="composerCaptionInput" placeholder="Add a caption (optional)...">
+        </div>
+
+        <!-- Send Action Footer -->
+        <div class="composer-footer">
+          <button type="button" id="btnConfirmUpload" class="primary-send-btn">
+            <span>Send Now</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- QR Code Pair Modal -->
+    <div id="qrModal" class="modal-dialog hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Scan to Pair iPhone</h3>
+          <button id="closeQrBtn" class="icon-close-btn">&times;</button>
+        </div>
+        <div class="modal-body qr-modal-body">
+          <div class="qr-frame">
+            <img id="qrCodeImg" src="" alt="Pairing QR Code">
+          </div>
+          <div class="qr-instructions">
+            <div class="step">
+              <span class="step-num">1</span>
+              <p>Open <strong>Camera app</strong> on iPhone</p>
+            </div>
+            <div class="step">
+              <span class="step-num">2</span>
+              <p>Point camera at the QR code</p>
+            </div>
+            <div class="step">
+              <span class="step-num">3</span>
+              <p>Tap yellow Safari notification banner</p>
+            </div>
+          </div>
+          <div class="ip-url-box">
+            <span class="ip-label">Direct Network Address:</span>
+            <code id="fullUrlCode">http://...</code>
+            <button id="copyUrlBtn" class="copy-btn">Copy</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fullscreen Interactive Lightbox Modal -->
+    <div id="lightboxModal" class="lightbox-modal hidden">
+      <div class="lightbox-backdrop"></div>
+      
+      <!-- Lightbox Header Controls -->
+      <div class="lightbox-toolbar">
+        <div class="lightbox-title-info">
+          <span id="lightboxFileName" class="lightbox-filename">Media Preview</span>
+        </div>
+        <div class="lightbox-actions">
+          <button id="zoomOutBtn" class="lightbox-tool-btn" title="Zoom Out (-)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <span id="zoomLevelDisplay" class="zoom-level-text">100%</span>
+          <button id="zoomInBtn" class="lightbox-tool-btn" title="Zoom In (+)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <button id="resetZoomBtn" class="lightbox-tool-btn" title="Reset Zoom & Pan">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
+          <a id="lightboxDownloadBtn" href="" download class="lightbox-tool-btn" title="Download Original">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </a>
+          <button id="closeLightboxBtn" class="lightbox-tool-btn close-btn" title="Close (Esc)">&times;</button>
+        </div>
+      </div>
+
+      <!-- Viewport Pan Container -->
+      <div class="lightbox-viewport" id="lightboxViewport">
+        <div class="lightbox-content" id="lightboxContent"></div>
+      </div>
+    </div>
+
+    <!-- Server Shutdown Overlay -->
+    <div id="shutdownOverlay" class="shutdown-overlay hidden">
+      <div class="shutdown-backdrop"></div>
+      <div class="shutdown-card">
+        <div class="shutdown-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+            <line x1="12" y1="2" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <h2>Server Stopped</h2>
+        <p>The Network Sharer server has been shut down and port 3000 is released. You can safely close this tab.</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

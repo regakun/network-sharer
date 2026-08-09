@@ -1,0 +1,19 @@
+{
+  "name": "network-sharer",
+  "version": "1.0.0",
+  "description": "Seamless web-based file and photo sharing app from iPhone to PC",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "stop": "node -e \"fetch('http://localhost:3000/api/shutdown',{method:'POST'}).catch(()=>{})\"",
+    "test": "node test/server.test.js"
+  },
+  "dependencies": {
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.3",
+    "sharp": "^0.35.3"
+  }
+}
