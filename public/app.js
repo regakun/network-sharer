@@ -461,6 +461,10 @@ function openLightbox(src, isVid = false, filename = 'Media Preview') {
     ? `<video src="${src}" controls autoplay></video>`
     : `<img src="${src}" alt="lightbox">`;
 
+  // Lock body scrolling for iOS Safari
+  document.body.style.overflow = 'hidden';
+  document.documentElement.style.overflow = 'hidden';
+
   resetZoom();
   lightboxModal.classList.remove('hidden');
 }
@@ -469,12 +473,17 @@ function openLightbox(src, isVid = false, filename = 'Media Preview') {
 function closeLightbox() {
   lightboxModal.classList.add('hidden');
   lightboxContent.innerHTML = '';
+  document.body.style.overflow = '';
+  document.documentElement.style.overflow = '';
   resetZoom();
 }
 
 function updateTransform() {
-  lightboxContent.style.transform = `translate3d(${panX}px, ${panY}px, 0) scale(${zoomScale})`;
-  zoomLevelDisplay.textContent = `${Math.round(zoomScale * 100)}%`;
+  // Translate from dead-center (-50%, -50%) plus pan offsets
+  lightboxContent.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${zoomScale})`;
+  if (zoomLevelDisplay) {
+    zoomLevelDisplay.textContent = `${Math.round(zoomScale * 100)}%`;
+  }
 }
 
 function setZoom(scale, centerX = 0, centerY = 0) {
