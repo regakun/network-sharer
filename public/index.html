@@ -213,11 +213,53 @@
       </div>
     </div>
 
-    <!-- Fullscreen Lightbox Modal -->
+    <!-- Fullscreen Interactive Lightbox Modal -->
     <div id="lightboxModal" class="lightbox-modal hidden">
       <div class="lightbox-backdrop"></div>
-      <button id="closeLightboxBtn" class="lightbox-close">&times;</button>
-      <div class="lightbox-content" id="lightboxContent"></div>
+      
+      <!-- Lightbox Header Controls -->
+      <div class="lightbox-toolbar">
+        <div class="lightbox-title-info">
+          <span id="lightboxFileName" class="lightbox-filename">Media Preview</span>
+        </div>
+        <div class="lightbox-actions">
+          <button id="zoomOutBtn" class="lightbox-tool-btn" title="Zoom Out (-)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <span id="zoomLevelDisplay" class="zoom-level-text">100%</span>
+          <button id="zoomInBtn" class="lightbox-tool-btn" title="Zoom In (+)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <button id="resetZoomBtn" class="lightbox-tool-btn" title="Reset Zoom & Pan">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
+          <a id="lightboxDownloadBtn" href="" download class="lightbox-tool-btn" title="Download Original">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </a>
+          <button id="closeLightboxBtn" class="lightbox-tool-btn close-btn" title="Close (Esc)">&times;</button>
+        </div>
+      </div>
+
+      <!-- Viewport Pan Container -->
+      <div class="lightbox-viewport" id="lightboxViewport">
+        <div class="lightbox-content" id="lightboxContent"></div>
+      </div>
     </div>
 
     <!-- Server Shutdown Overlay -->
