@@ -99,9 +99,17 @@ function setupSSE() {
     const newFile = JSON.parse(e.data);
     newFile.type = 'file';
 
-    // Remove any optimistic loading card with matching filename if present
-    itemsList = itemsList.filter(item => item.id !== newFile.filename);
-    itemsList.unshift(newFile);
+    // Remove any optimistic uploading card matching originalName or filename
+    itemsList = itemsList.filter(item => {
+      if (item.id === newFile.filename) return false;
+      if (item.uploading && item.originalName === newFile.originalName) return false;
+      return true;
+    });
+
+    // Avoid duplicate insertions if already added
+    if (!itemsList.some(item => item.id === newFile.filename)) {
+      itemsList.unshift(newFile);
+    }
     renderGrid();
   });
 
@@ -343,18 +351,43 @@ function uploadSelectedFiles() {
   };
 
   xhr.onload = () => {
+    const tempIds = filesToUpload.map(f => `temp_${f.id}`);
+    filesToUpload.forEach(item => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    });
+
     if (xhr.status >= 200 && xhr.status < 300) {
-      // Success handled automatically via SSE broadcasts
+      // Remove temporary cards once response arrives
+      itemsList = itemsList.filter(i => !tempIds.includes(i.id));
+      
+      // If server returned array of saved files directly, merge any missing ones
+      try {
+        const resData = JSON.parse(xhr.responseText);
+        if (resData.files && Array.isArray(resData.files)) {
+          resData.files.forEach(sf => {
+            sf.type = 'file';
+            if (!itemsList.some(i => i.id === sf.filename)) {
+              itemsList.unshift(sf);
+            }
+          });
+        }
+      } catch (e) {}
+
+      renderGrid();
     } else {
       alert('Upload failed. Please check network connection.');
-      itemsList = itemsList.filter(i => !i.uploading);
+      itemsList = itemsList.filter(i => !tempIds.includes(i.id));
       renderGrid();
     }
   };
 
   xhr.onerror = () => {
     alert('Upload error.');
-    itemsList = itemsList.filter(i => !i.uploading);
+    const tempIds = filesToUpload.map(f => `temp_${f.id}`);
+    filesToUpload.forEach(item => {
+      if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
+    });
+    itemsList = itemsList.filter(i => !tempIds.includes(i.id));
     renderGrid();
   };
 
