@@ -5,15 +5,21 @@ const fs = require('fs');
 const os = require('os');
 const QRCode = require('qrcode');
 const cors = require('cors');
+const compression = require('compression');
+const sharp = require('sharp');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const THUMBNAILS_DIR = path.join(UPLOADS_DIR, '.thumbnails');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// Ensure upload directory exists
+// Ensure upload & thumbnail directories exist
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+if (!fs.existsSync(THUMBNAILS_DIR)) {
+  fs.mkdirSync(THUMBNAILS_DIR, { recursive: true });
 }
 
 // In-memory text snippets store
@@ -22,10 +28,11 @@ const textSnippets = [];
 let sseClients = [];
 
 // Middleware
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(PUBLIC_DIR));
+app.use(express.static(PUBLIC_DIR, { maxAge: '1d' }));
 
 // Configure Multer storage
 const storage = multer.diskStorage({
@@ -33,7 +40,6 @@ const storage = multer.diskStorage({
     cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
-    // Sanitize filename and prepend timestamp
     const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
     cb(null, `${Date.now()}_${safeName}`);
   }
@@ -79,7 +85,7 @@ function formatFileObject(filename, reqHost) {
   } catch (e) {}
 
   const ext = path.extname(filename).toLowerCase();
-  const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.svg', '.bmp'].includes(ext);
+  const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.svg', '.bmp', '.tiff'].includes(ext);
   const isVideo = ['.mp4', '.mov', '.webm', '.m4v', '.mkv', '.avi'].includes(ext);
   const isAudio = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac'].includes(ext);
 
@@ -96,7 +102,8 @@ function formatFileObject(filename, reqHost) {
     isVideo,
     isAudio,
     ext,
-    url: `/api/files/${encodeURIComponent(filename)}`
+    url: `/api/files/${encodeURIComponent(filename)}`,
+    thumbnailUrl: isImage ? `/api/thumbnail/${encodeURIComponent(filename)}` : `/api/files/${encodeURIComponent(filename)}`
   };
 }
 
@@ -137,6 +144,47 @@ app.get('/api/events', (req, res) => {
   req.on('close', () => {
     sseClients = sseClients.filter(c => c.id !== clientId);
   });
+});
+
+// API: Serve On-Demand Compressed Image Thumbnail (High Speed Grid Loading)
+app.get('/api/thumbnail/:filename', async (req, res) => {
+  const filename = path.basename(req.params.filename);
+  const filePath = path.join(UPLOADS_DIR, filename);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'File not found' });
+  }
+
+  const ext = path.extname(filename).toLowerCase();
+  const isImage = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.bmp', '.tiff'].includes(ext);
+
+  if (!isImage) {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.sendFile(filePath);
+  }
+
+  const thumbFilename = `thumb_400_${filename}.jpg`;
+  const thumbPath = path.join(THUMBNAILS_DIR, thumbFilename);
+
+  // Serve from thumbnail disk cache if present
+  if (fs.existsSync(thumbPath)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    return res.sendFile(thumbPath);
+  }
+
+  // Generate 400px compressed JPEG thumbnail on the fly using Sharp
+  try {
+    await sharp(filePath)
+      .resize({ width: 400, height: 400, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toFile(thumbPath);
+
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    res.sendFile(thumbPath);
+  } catch (err) {
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.sendFile(filePath);
+  }
 });
 
 // API: File Upload (Multi-file + Caption support)
@@ -186,7 +234,7 @@ app.get('/api/files', (req, res) => {
   });
 });
 
-// API: Serve Raw File
+// API: Serve Raw File with Cache Headers
 app.get('/api/files/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
   const filePath = path.join(UPLOADS_DIR, filename);
@@ -199,6 +247,7 @@ app.get('/api/files/:filename', (req, res) => {
     return res.download(filePath);
   }
 
+  res.setHeader('Cache-Control', 'public, max-age=86400');
   res.sendFile(filePath);
 });
 
@@ -206,9 +255,16 @@ app.get('/api/files/:filename', (req, res) => {
 app.delete('/api/files/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
   const filePath = path.join(UPLOADS_DIR, filename);
+  const thumbFilename = `thumb_400_${filename}.jpg`;
+  const thumbPath = path.join(THUMBNAILS_DIR, thumbFilename);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
+  }
+
+  // Delete cached thumbnail if it exists
+  if (fs.existsSync(thumbPath)) {
+    try { fs.unlinkSync(thumbPath); } catch (e) {}
   }
 
   fs.unlink(filePath, err => {
