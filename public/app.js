@@ -499,13 +499,14 @@ function renderGrid() {
         setTimeout(() => copyBtn.querySelector('span').textContent = 'Copy Note', 2000);
       };
     } else {
-      const mediaSrc = item.previewUrl || item.url;
+      const mediaSrc = item.previewUrl || item.thumbnailUrl || item.url;
+      const fullMediaSrc = item.url;
 
       let mediaHtml = '';
       if (item.isImage) {
         mediaHtml = `
           <div class="card-media">
-            <img src="${mediaSrc}" alt="${escapeHtml(item.originalName)}" loading="lazy">
+            <img src="${mediaSrc}" alt="${escapeHtml(item.originalName)}" loading="lazy" decoding="async">
           </div>
         `;
       } else if (item.isVideo) {
@@ -565,7 +566,7 @@ function renderGrid() {
       if (!item.uploading && (item.isImage || item.isVideo)) {
         const mediaContainer = card.querySelector('.card-media');
         mediaContainer.style.cursor = 'pointer';
-        mediaContainer.onclick = () => openLightbox(mediaSrc, item.isVideo);
+        mediaContainer.onclick = () => openLightbox(fullMediaSrc, item.isVideo);
       }
 
       const delBtn = card.querySelector('.delete-btn');
