@@ -50,7 +50,7 @@ function getAllLocalIpAddresses() {
   const ips = [];
   for (const name of Object.keys(interfaces)) {
     for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
+      if ((iface.family === 'IPv4' || iface.family === 4) && !iface.internal) {
         ips.push({ name, address: iface.address });
       }
     }
