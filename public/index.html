@@ -45,15 +45,25 @@
         </div>
       </div>
       
-      <button id="openQrBtn" class="qr-trigger-btn" title="Scan QR Code to Pair iPhone">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="7" height="7" rx="1"/>
-          <rect x="14" y="3" width="7" height="7" rx="1"/>
-          <rect x="14" y="14" width="7" height="7" rx="1"/>
-          <rect x="3" y="14" width="7" height="7" rx="1"/>
-        </svg>
-        <span>Pair Device</span>
-      </button>
+      <div class="header-actions">
+        <button id="openQrBtn" class="qr-trigger-btn" title="Scan QR Code to Pair iPhone">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+          </svg>
+          <span>Pair Device</span>
+        </button>
+
+        <button id="stopServerBtn" class="stop-server-btn" title="Stop Network Sharer Server">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+            <line x1="12" y1="2" x2="12" y2="12"/>
+          </svg>
+          <span>Stop Server</span>
+        </button>
+      </div>
     </header>
 
     <!-- Main Content Area -->
@@ -208,6 +218,21 @@
       <div class="lightbox-backdrop"></div>
       <button id="closeLightboxBtn" class="lightbox-close">&times;</button>
       <div class="lightbox-content" id="lightboxContent"></div>
+    </div>
+
+    <!-- Server Shutdown Overlay -->
+    <div id="shutdownOverlay" class="shutdown-overlay hidden">
+      <div class="shutdown-backdrop"></div>
+      <div class="shutdown-card">
+        <div class="shutdown-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+            <line x1="12" y1="2" x2="12" y2="12"/>
+          </svg>
+        </div>
+        <h2>Server Stopped</h2>
+        <p>The Network Sharer server has been shut down and port 3000 is released. You can safely close this tab.</p>
+      </div>
     </div>
   </div>
 

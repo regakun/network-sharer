@@ -128,6 +128,10 @@ function setupSSE() {
     itemsList = itemsList.filter(item => item.filename !== data.filename && item.id !== data.filename);
     renderGrid();
   });
+
+  evtSource.addEventListener('server_shutdown', () => {
+    showShutdownOverlay();
+  });
 }
 
 // Setup Event Listeners
@@ -138,6 +142,11 @@ function setupEventListeners() {
   qrModal.addEventListener('click', (e) => {
     if (e.target.classList.contains('modal-backdrop')) qrModal.classList.add('hidden');
   });
+
+  const stopServerBtn = document.getElementById('stopServerBtn');
+  if (stopServerBtn) {
+    stopServerBtn.addEventListener('click', stopServer);
+  }
 
   copyUrlBtn.addEventListener('click', () => {
     if (serverInfo) {
@@ -594,4 +603,23 @@ function formatTime(isoStr) {
   if (!isoStr) return '';
   const date = new Date(isoStr);
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// Graceful Remote Shutdown
+async function stopServer() {
+  if (!confirm('Are you sure you want to stop the Network Sharer server?')) return;
+
+  try {
+    await fetch('/api/shutdown', { method: 'POST' });
+    showShutdownOverlay();
+  } catch (e) {
+    showShutdownOverlay();
+  }
+}
+
+function showShutdownOverlay() {
+  const shutdownOverlay = document.getElementById('shutdownOverlay');
+  if (shutdownOverlay) {
+    shutdownOverlay.classList.remove('hidden');
+  }
 }
