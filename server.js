@@ -8,6 +8,59 @@ const cors = require('cors');
 const compression = require('compression');
 const sharp = require('sharp');
 
+const ENV_PATH = path.join(__dirname, '.env');
+
+// Helper: Load .env variables on server startup
+function loadEnv() {
+  if (!fs.existsSync(ENV_PATH)) return;
+  try {
+    const content = fs.readFileSync(ENV_PATH, 'utf8');
+    content.split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim();
+        let val = trimmed.slice(eqIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    });
+  } catch (e) {}
+}
+
+// Helper: Save key=value pair to .env file
+function saveEnvVar(key, value) {
+  try {
+    let envLines = [];
+    if (fs.existsSync(ENV_PATH)) {
+      envLines = fs.readFileSync(ENV_PATH, 'utf8').split('\n');
+    }
+
+    let found = false;
+    envLines = envLines.map(line => {
+      if (line.trim().startsWith(`${key}=`)) {
+        found = true;
+        return `${key}=${value}`;
+      }
+      return line;
+    });
+
+    if (!found) {
+      envLines.push(`${key}=${value}`);
+    }
+
+    fs.writeFileSync(ENV_PATH, envLines.filter(l => l.trim().length > 0).join('\n') + '\n');
+  } catch (e) {}
+}
+
+// Load environment variables from .env if present
+loadEnv();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DEFAULT_UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -184,7 +237,8 @@ app.post('/api/settings', (req, res) => {
       fs.mkdirSync(resolvedPath, { recursive: true });
     }
     activeUploadDir = resolvedPath;
-    console.log(`[Settings] Target upload directory dynamically updated to: ${activeUploadDir}`);
+    saveEnvVar('UPLOAD_DIR', activeUploadDir);
+    console.log(`[Settings] Target upload directory updated and synced to .env: ${activeUploadDir}`);
 
     broadcastEvent('settings_updated', { activeUploadDir });
     res.json({ success: true, activeUploadDir });
