@@ -1,8 +1,9 @@
+// Network Sharer Client Application
+
 let selectedFiles = [];
 let itemsList = [];
 let currentFilter = 'all';
 let serverInfo = null;
-let serverSettings = null;
 
 // DOM Elements
 const dropOverlay = document.getElementById('dropOverlay');
@@ -13,18 +14,6 @@ const closeQrBtn = document.getElementById('closeQrBtn');
 const qrCodeImg = document.getElementById('qrCodeImg');
 const fullUrlCode = document.getElementById('fullUrlCode');
 const copyUrlBtn = document.getElementById('copyUrlBtn');
-
-// Folder Settings Elements
-const openFolderBtn = document.getElementById('openFolderBtn');
-const activeFolderBtnLabel = document.getElementById('activeFolderBtnLabel');
-const folderModal = document.getElementById('folderModal');
-const closeFolderBtn = document.getElementById('closeFolderBtn');
-const customFolderInput = document.getElementById('customFolderInput');
-const btnSaveFolder = document.getElementById('btnSaveFolder');
-const presetDefaultBtn = document.getElementById('presetDefaultBtn');
-const presetDownloadsBtn = document.getElementById('presetDownloadsBtn');
-const presetPicturesBtn = document.getElementById('presetPicturesBtn');
-const presetDesktopBtn = document.getElementById('presetDesktopBtn');
 
 const mediaGrid = document.getElementById('mediaGrid');
 const emptyState = document.getElementById('emptyState');
@@ -48,7 +37,6 @@ const closeComposerBtn = document.getElementById('closeComposerBtn');
 const composerTray = document.getElementById('composerTray');
 const composerCountBadge = document.getElementById('composerCountBadge');
 const composerCaptionInput = document.getElementById('composerCaptionInput');
-const composerSubfolderInput = document.getElementById('composerSubfolderInput');
 const btnConfirmUpload = document.getElementById('btnConfirmUpload');
 
 // Lightbox
@@ -59,31 +47,12 @@ const lightboxContent = document.getElementById('lightboxContent');
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
   fetchServerInfo();
-  fetchSettings();
   fetchInitialData();
   setupSSE();
   setupEventListeners();
   setupLightboxEvents();
   setupDragAndDrop();
 });
-
-// Fetch Settings Data (Target Directory & Presets)
-async function fetchSettings() {
-  try {
-    const res = await fetch('/api/settings');
-    serverSettings = await res.json();
-    if (customFolderInput) customFolderInput.value = serverSettings.activeUploadDir;
-
-    // Format folder label for button
-    if (activeFolderBtnLabel) {
-      const parts = serverSettings.activeUploadDir.split(/[/\\]/);
-      const folderName = parts[parts.length - 1] || serverSettings.activeUploadDir;
-      activeFolderBtnLabel.textContent = folderName;
-    }
-  } catch (e) {
-    console.error('Failed to load settings:', e);
-  }
-}
 
 // Fetch Server IP & QR Code Data
 async function fetchServerInfo() {
@@ -164,45 +133,16 @@ function setupSSE() {
   evtSource.addEventListener('server_shutdown', () => {
     showShutdownOverlay();
   });
-
-  evtSource.addEventListener('settings_updated', () => {
-    fetchSettings();
-    fetchInitialData();
-  });
 }
 
 // Setup Event Listeners
 function setupEventListeners() {
-  // Target Folder Settings Modal
-  if (openFolderBtn) {
-    openFolderBtn.addEventListener('click', () => {
-      fetchSettings();
-      folderModal.classList.remove('hidden');
-    });
-  }
-  if (closeFolderBtn) {
-    closeFolderBtn.addEventListener('click', () => folderModal.classList.add('hidden'));
-  }
-  if (folderModal) {
-    folderModal.addEventListener('click', (e) => {
-      if (e.target.classList.contains('modal-backdrop')) folderModal.classList.add('hidden');
-    });
-  }
-
-  // Folder Presets
-  if (presetDefaultBtn) presetDefaultBtn.onclick = () => saveFolderSettings(serverSettings ? serverSettings.defaultUploadDir : '');
-  if (presetDownloadsBtn) presetDownloadsBtn.onclick = () => saveFolderSettings(serverSettings ? serverSettings.downloadsDir : '');
-  if (presetPicturesBtn) presetPicturesBtn.onclick = () => saveFolderSettings(serverSettings ? serverSettings.picturesDir : '');
-  if (presetDesktopBtn) presetDesktopBtn.onclick = () => saveFolderSettings(serverSettings ? serverSettings.desktopDir : '');
-
-  if (btnSaveFolder) {
-    btnSaveFolder.onclick = () => {
-      const customPath = customFolderInput.value.trim();
-      if (customPath) {
-        saveFolderSettings(customPath);
-      }
-    };
-  }
+  // QR Code Modal
+  openQrBtn.addEventListener('click', () => qrModal.classList.remove('hidden'));
+  closeQrBtn.addEventListener('click', () => qrModal.classList.add('hidden'));
+  qrModal.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal-backdrop')) qrModal.classList.add('hidden');
+  });
 
   const stopServerBtn = document.getElementById('stopServerBtn');
   if (stopServerBtn) {
@@ -315,28 +255,6 @@ function openComposer() {
   composerModal.classList.remove('hidden');
 }
 
-// Save Target Folder Settings
-async function saveFolderSettings(newPath) {
-  if (!newPath) return;
-  try {
-    const res = await fetch('/api/settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uploadDir: newPath })
-    });
-    const data = await res.json();
-    if (data.success) {
-      if (folderModal) folderModal.classList.add('hidden');
-      fetchSettings();
-      fetchInitialData();
-    } else {
-      alert(data.error || 'Failed to update save folder');
-    }
-  } catch (e) {
-    alert('Error updating target save folder');
-  }
-}
-
 // Close Composer Modal
 function closeComposer() {
   composerModal.classList.add('hidden');
@@ -345,7 +263,6 @@ function closeComposer() {
   });
   selectedFiles = [];
   composerCaptionInput.value = '';
-  if (composerSubfolderInput) composerSubfolderInput.value = '';
 }
 
 // Render Composer Media Tray
@@ -389,12 +306,11 @@ function renderComposerTray() {
   });
 }
 
-// Perform Upload with Live Progress & Subfolder Support
+// Perform Upload with Live Progress
 function uploadSelectedFiles() {
   if (selectedFiles.length === 0) return;
 
   const caption = composerCaptionInput.value.trim();
-  const subfolder = composerSubfolderInput ? composerSubfolderInput.value.trim() : '';
   const filesToUpload = [...selectedFiles];
   closeComposer();
 
@@ -404,7 +320,6 @@ function uploadSelectedFiles() {
     const optimisticObj = {
       id: tempId,
       filename: item.file.name,
-      subfolder,
       originalName: item.file.name,
       size: item.file.size,
       createdAt: new Date().toISOString(),
@@ -427,9 +342,6 @@ function uploadSelectedFiles() {
   });
   if (caption) {
     formData.append('caption', caption);
-  }
-  if (subfolder) {
-    formData.append('subfolder', subfolder);
   }
 
   const xhr = new XMLHttpRequest();
@@ -511,12 +423,11 @@ async function sendTextSnippet() {
 }
 
 // Delete Shared File
-async function deleteFile(filename, subfolder = '') {
+async function deleteFile(filename) {
   if (!confirm(`Delete "${filename}"?`)) return;
 
   try {
-    const subQuery = subfolder ? `?subfolder=${encodeURIComponent(subfolder)}` : '';
-    await fetch(`/api/files/${encodeURIComponent(filename)}${subQuery}`, { method: 'DELETE' });
+    await fetch(`/api/files/${encodeURIComponent(filename)}`, { method: 'DELETE' });
   } catch (e) {
     alert('Failed to delete file');
   }
@@ -802,7 +713,7 @@ function renderGrid() {
 
       const delBtn = card.querySelector('.delete-btn');
       if (delBtn) {
-        delBtn.onclick = () => deleteFile(item.filename, item.subfolder);
+        delBtn.onclick = () => deleteFile(item.filename);
       }
     }
 

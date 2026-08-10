@@ -56,21 +56,13 @@ npm install
 
 ### 2. Start the Application
 ```bash
-# Default (saves to ./uploads)
 npm start
-
-# Custom target directory via CLI argument
-node server.js /path/to/my/folder
-
-# Custom target directory via environment variable
-UPLOAD_DIR=/home/user/Downloads npm start
 ```
 
 When started, the terminal will print your local network address and a scannable QR code:
 ```text
 ==================================================
  NETWORK SHARER ACTIVE (Listening on 0.0.0.0:3000)
- Target Directory: /home/user/Downloads
  Scan QR Code with iPhone Camera to start:
  Local PC URL: http://localhost:3000
  Network URL:  http://192.168.x.x:3000
@@ -83,11 +75,7 @@ When started, the terminal will print your local network address and a scannable
 3. Tap the yellow Safari notification banner to open the app.
 4. Tap the **Photo Gallery** or **Camera** icon to pick photos, videos, or files and tap **Send Now**!
 
-### 4. Dynamic Target Save Directory & Subfolders
-- **Web UI Folder Selector**: Click **Save Folder** in the PC header to switch your target save folder at runtime (Presets for Downloads, Pictures, Desktop, or enter any custom directory path).
-- **Subfolder Upload**: Optionally specify a subfolder (e.g. `Vacation_2026`) in the upload composer to organize files on your PC automatically.
-
-### 5. Stop the Server
+### 4. Stop the Server
 To stop the server and release port 3000:
 - Click **Stop Server** in the web interface header, OR
 - Press `Ctrl+C` in the terminal, OR

@@ -8,88 +8,18 @@ const cors = require('cors');
 const compression = require('compression');
 const sharp = require('sharp');
 
-const ENV_PATH = path.join(__dirname, '.env');
-
-// Helper: Load .env variables on server startup
-function loadEnv() {
-  if (!fs.existsSync(ENV_PATH)) return;
-  try {
-    const content = fs.readFileSync(ENV_PATH, 'utf8');
-    content.split('\n').forEach(line => {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) return;
-      const eqIdx = trimmed.indexOf('=');
-      if (eqIdx > 0) {
-        const key = trimmed.slice(0, eqIdx).trim();
-        let val = trimmed.slice(eqIdx + 1).trim();
-        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-          val = val.slice(1, -1);
-        }
-        if (!process.env[key]) {
-          process.env[key] = val;
-        }
-      }
-    });
-  } catch (e) {}
-}
-
-// Helper: Save key=value pair to .env file
-function saveEnvVar(key, value) {
-  try {
-    let envLines = [];
-    if (fs.existsSync(ENV_PATH)) {
-      envLines = fs.readFileSync(ENV_PATH, 'utf8').split('\n');
-    }
-
-    let found = false;
-    envLines = envLines.map(line => {
-      if (line.trim().startsWith(`${key}=`)) {
-        found = true;
-        return `${key}=${value}`;
-      }
-      return line;
-    });
-
-    if (!found) {
-      envLines.push(`${key}=${value}`);
-    }
-
-    fs.writeFileSync(ENV_PATH, envLines.filter(l => l.trim().length > 0).join('\n') + '\n');
-  } catch (e) {}
-}
-
-// Load environment variables from .env if present
-loadEnv();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DEFAULT_UPLOADS_DIR = path.join(__dirname, 'uploads');
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+const THUMBNAILS_DIR = path.join(UPLOADS_DIR, '.thumbnails');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// Active upload directory state
-let activeUploadDir = process.env.UPLOAD_DIR || DEFAULT_UPLOADS_DIR;
-
-// Parse CLI argument for custom target directory: node server.js /custom/path
-const cliArgs = process.argv.slice(2);
-const dirArg = cliArgs.find(arg => !arg.startsWith('--'));
-if (dirArg) {
-  activeUploadDir = path.isAbsolute(dirArg) ? dirArg : path.resolve(process.cwd(), dirArg);
+// Ensure upload & thumbnail directories exist
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
-
-// Ensure active upload & thumbnail directories exist
-function getActiveUploadDir() {
-  if (!fs.existsSync(activeUploadDir)) {
-    fs.mkdirSync(activeUploadDir, { recursive: true });
-  }
-  return activeUploadDir;
-}
-
-function getThumbnailsDir() {
-  const thumbDir = path.join(getActiveUploadDir(), '.thumbnails');
-  if (!fs.existsSync(thumbDir)) {
-    fs.mkdirSync(thumbDir, { recursive: true });
-  }
-  return thumbDir;
+if (!fs.existsSync(THUMBNAILS_DIR)) {
+  fs.mkdirSync(THUMBNAILS_DIR, { recursive: true });
 }
 
 // In-memory text snippets store
@@ -104,20 +34,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(PUBLIC_DIR, { maxAge: '1d' }));
 
-// Configure Multer storage for dynamic target & subfolders
+// Configure Multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    let target = getActiveUploadDir();
-    const rawSub = (req.body.subfolder || req.query.subfolder || '').trim();
-    const subfolder = rawSub.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-    if (subfolder) {
-      target = path.join(target, subfolder);
-      if (!fs.existsSync(target)) {
-        fs.mkdirSync(target, { recursive: true });
-      }
-    }
-    cb(null, target);
+    cb(null, UPLOADS_DIR);
   },
   filename: (req, file, cb) => {
     const safeName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
@@ -157,10 +77,8 @@ function broadcastEvent(eventType, payload) {
 }
 
 // Format file object metadata
-function formatFileObject(filename, subfolder = '') {
-  const fileDir = subfolder ? path.join(getActiveUploadDir(), subfolder) : getActiveUploadDir();
-  const filePath = path.join(fileDir, filename);
-
+function formatFileObject(filename, reqHost) {
+  const filePath = path.join(UPLOADS_DIR, filename);
   let stats = { size: 0, mtimeMs: Date.now() };
   try {
     stats = fs.statSync(filePath);
@@ -173,12 +91,10 @@ function formatFileObject(filename, subfolder = '') {
 
   const parts = filename.split('_');
   const originalName = parts.length > 1 ? parts.slice(1).join('_') : filename;
-  const subQuery = subfolder ? `?subfolder=${encodeURIComponent(subfolder)}` : '';
 
   return {
-    id: subfolder ? `${subfolder}/${filename}` : filename,
+    id: filename,
     filename,
-    subfolder,
     originalName,
     size: stats.size,
     createdAt: new Date(stats.mtimeMs).toISOString(),
@@ -186,68 +102,12 @@ function formatFileObject(filename, subfolder = '') {
     isVideo,
     isAudio,
     ext,
-    url: `/api/files/${encodeURIComponent(filename)}${subQuery}`,
-    thumbnailUrl: isImage ? `/api/thumbnail/${encodeURIComponent(filename)}${subQuery}` : `/api/files/${encodeURIComponent(filename)}${subQuery}`
+    url: `/api/files/${encodeURIComponent(filename)}`,
+    thumbnailUrl: isImage ? `/api/thumbnail/${encodeURIComponent(filename)}` : `/api/files/${encodeURIComponent(filename)}`
   };
 }
 
-// Helper: Recursively scan files inside target upload directory
-function scanDirectory(dir, relPath = '') {
-  let results = [];
-  if (!fs.existsSync(dir)) return results;
-
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.name.startsWith('.')) continue; // Skip hidden folders like .thumbnails
-
-    const fullPath = path.join(dir, entry.name);
-    const itemSubfolder = relPath;
-
-    if (entry.isDirectory()) {
-      const nextRel = relPath ? path.join(relPath, entry.name) : entry.name;
-      results = results.concat(scanDirectory(fullPath, nextRel));
-    } else if (entry.isFile()) {
-      results.push(formatFileObject(entry.name, itemSubfolder));
-    }
-  }
-  return results;
-}
-
-// API: Settings Endpoint (Get & Change Target Directory)
-app.get('/api/settings', (req, res) => {
-  res.json({
-    activeUploadDir: getActiveUploadDir(),
-    defaultUploadDir: DEFAULT_UPLOADS_DIR,
-    downloadsDir: path.join(os.homedir(), 'Downloads'),
-    picturesDir: path.join(os.homedir(), 'Pictures'),
-    desktopDir: path.join(os.homedir(), 'Desktop')
-  });
-});
-
-app.post('/api/settings', (req, res) => {
-  const newDir = (req.body.uploadDir || '').trim();
-  if (!newDir) {
-    return res.status(400).json({ error: 'Target directory path cannot be empty' });
-  }
-
-  const resolvedPath = path.isAbsolute(newDir) ? newDir : path.resolve(process.cwd(), newDir);
-
-  try {
-    if (!fs.existsSync(resolvedPath)) {
-      fs.mkdirSync(resolvedPath, { recursive: true });
-    }
-    activeUploadDir = resolvedPath;
-    saveEnvVar('UPLOAD_DIR', activeUploadDir);
-    console.log(`[Settings] Target upload directory updated and synced to .env: ${activeUploadDir}`);
-
-    broadcastEvent('settings_updated', { activeUploadDir });
-    res.json({ success: true, activeUploadDir });
-  } catch (err) {
-    res.status(500).json({ error: `Failed to access target directory: ${err.message}` });
-  }
-});
-
-// API: Connection & Server Info (IP + QR Code + Active Dir)
+// API: Connection & Server Info (IP + QR Code)
 app.get('/api/info', async (req, res) => {
   const allIps = getAllLocalIpAddresses();
   const selectedIp = req.query.ip || getPrimaryLocalIp();
@@ -260,8 +120,7 @@ app.get('/api/info', async (req, res) => {
       allIps,
       port: PORT,
       serverUrl,
-      qrCodeDataUrl,
-      activeUploadDir: getActiveUploadDir()
+      qrCodeDataUrl
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to generate QR Code' });
@@ -287,12 +146,10 @@ app.get('/api/events', (req, res) => {
   });
 });
 
-// API: Serve On-Demand Compressed Image Thumbnail
+// API: Serve On-Demand Compressed Image Thumbnail (High Speed Grid Loading)
 app.get('/api/thumbnail/:filename', async (req, res) => {
   const filename = path.basename(req.params.filename);
-  const subfolder = (req.query.subfolder || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-  const fileDir = subfolder ? path.join(getActiveUploadDir(), subfolder) : getActiveUploadDir();
-  const filePath = path.join(fileDir, filename);
+  const filePath = path.join(UPLOADS_DIR, filename);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
@@ -306,14 +163,16 @@ app.get('/api/thumbnail/:filename', async (req, res) => {
     return res.sendFile(filePath);
   }
 
-  const thumbFilename = `thumb_400_${subfolder ? subfolder + '_' : ''}${filename}.jpg`;
-  const thumbPath = path.join(getThumbnailsDir(), thumbFilename);
+  const thumbFilename = `thumb_400_${filename}.jpg`;
+  const thumbPath = path.join(THUMBNAILS_DIR, thumbFilename);
 
+  // Serve from thumbnail disk cache if present
   if (fs.existsSync(thumbPath)) {
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     return res.sendFile(thumbPath);
   }
 
+  // Generate 400px compressed JPEG thumbnail on the fly using Sharp
   try {
     await sharp(filePath)
       .resize({ width: 400, height: 400, fit: 'inside', withoutEnlargement: true })
@@ -328,16 +187,13 @@ app.get('/api/thumbnail/:filename', async (req, res) => {
   }
 });
 
-// API: File Upload (Multi-file + Caption & Subfolder support)
+// API: File Upload (Multi-file + Caption support)
 app.post('/api/upload', upload.array('files'), (req, res) => {
   if (!req.files || req.files.length === 0) {
     return res.status(400).json({ error: 'No files provided' });
   }
 
-  const rawSub = (req.body.subfolder || req.query.subfolder || '').trim();
-  const subfolder = rawSub.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-  const uploadedFiles = req.files.map(file => formatFileObject(file.filename, subfolder));
+  const uploadedFiles = req.files.map(file => formatFileObject(file.filename, req.headers.host));
   const caption = (req.body.caption || '').trim();
 
   if (caption) {
@@ -358,29 +214,30 @@ app.post('/api/upload', upload.array('files'), (req, res) => {
   res.json({
     success: true,
     files: uploadedFiles,
-    caption,
-    subfolder
+    caption
   });
 });
 
-// API: List Files in Target Directory & Subfolders
+// API: List Files
 app.get('/api/files', (req, res) => {
-  try {
-    const fileObjects = scanDirectory(getActiveUploadDir()).sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
+  fs.readdir(UPLOADS_DIR, (err, files) => {
+    if (err) {
+      return res.status(500).json({ error: 'Failed to read uploads folder' });
+    }
+
+    const fileObjects = files
+      .filter(f => !f.startsWith('.'))
+      .map(f => formatFileObject(f, req.headers.host))
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
     res.json(fileObjects);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to read upload directory' });
-  }
+  });
 });
 
-// API: Serve Raw File with Cache Headers & Subfolder Support
+// API: Serve Raw File with Cache Headers
 app.get('/api/files/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
-  const subfolder = (req.query.subfolder || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-  const fileDir = subfolder ? path.join(getActiveUploadDir(), subfolder) : getActiveUploadDir();
-  const filePath = path.join(fileDir, filename);
+  const filePath = path.join(UPLOADS_DIR, filename);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
@@ -397,16 +254,15 @@ app.get('/api/files/:filename', (req, res) => {
 // API: Delete File
 app.delete('/api/files/:filename', (req, res) => {
   const filename = path.basename(req.params.filename);
-  const subfolder = (req.query.subfolder || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-  const fileDir = subfolder ? path.join(getActiveUploadDir(), subfolder) : getActiveUploadDir();
-  const filePath = path.join(fileDir, filename);
-  const thumbFilename = `thumb_400_${subfolder ? subfolder + '_' : ''}${filename}.jpg`;
-  const thumbPath = path.join(getThumbnailsDir(), thumbFilename);
+  const filePath = path.join(UPLOADS_DIR, filename);
+  const thumbFilename = `thumb_400_${filename}.jpg`;
+  const thumbPath = path.join(THUMBNAILS_DIR, thumbFilename);
 
   if (!fs.existsSync(filePath)) {
     return res.status(404).json({ error: 'File not found' });
   }
 
+  // Delete cached thumbnail if it exists
   if (fs.existsSync(thumbPath)) {
     try { fs.unlinkSync(thumbPath); } catch (e) {}
   }
@@ -415,8 +271,8 @@ app.delete('/api/files/:filename', (req, res) => {
     if (err) {
       return res.status(500).json({ error: 'Failed to delete file' });
     }
-    broadcastEvent('file_deleted', { filename, subfolder });
-    res.json({ success: true, filename, subfolder });
+    broadcastEvent('file_deleted', { filename });
+    res.json({ success: true, filename });
   });
 });
 
@@ -471,7 +327,6 @@ const server = app.listen(PORT, '0.0.0.0', async () => {
 
   console.log('\n==================================================');
   console.log(` NETWORK SHARER ACTIVE (Listening on 0.0.0.0:${PORT})`);
-  console.log(` Target Directory: ${getActiveUploadDir()}`);
   console.log(` Scan QR Code with iPhone Camera to start:`);
   console.log(` Local PC URL: http://localhost:${PORT}`);
   allIps.forEach(ip => {
