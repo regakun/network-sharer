@@ -46,6 +46,13 @@
       </div>
       
       <div class="header-actions">
+        <button id="openFolderBtn" class="folder-trigger-btn" title="Change Target Save Folder">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span id="activeFolderBtnLabel">Save Folder</span>
+        </button>
+
         <button id="openQrBtn" class="qr-trigger-btn" title="Scan QR Code to Pair iPhone">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7" rx="1"/>
@@ -160,9 +167,10 @@
           <div id="composerTray" class="composer-tray"></div>
         </div>
 
-        <!-- Optional Caption Input -->
-        <div class="composer-caption-box">
+        <!-- Optional Caption & Subfolder Inputs -->
+        <div class="composer-inputs-group">
           <input type="text" id="composerCaptionInput" placeholder="Add a caption (optional)...">
+          <input type="text" id="composerSubfolderInput" placeholder="Subfolder (optional, e.g. Vacation_2026)...">
         </div>
 
         <!-- Send Action Footer -->
@@ -174,6 +182,41 @@
               <polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Target Folder Settings Modal -->
+    <div id="folderModal" class="modal-dialog hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-card folder-modal-card">
+        <div class="modal-header">
+          <h3>Target Save Directory</h3>
+          <button id="closeFolderBtn" class="icon-close-btn">&times;</button>
+        </div>
+        <div class="modal-body folder-modal-body">
+          <p class="folder-desc">Uploaded files will be saved to this folder on your computer.</p>
+          
+          <div class="folder-preset-group">
+            <span class="preset-label">Quick Presets:</span>
+            <div class="preset-buttons">
+              <button type="button" class="preset-btn" id="presetDefaultBtn">Default Uploads</button>
+              <button type="button" class="preset-btn" id="presetDownloadsBtn">Downloads</button>
+              <button type="button" class="preset-btn" id="presetPicturesBtn">Pictures</button>
+              <button type="button" class="preset-btn" id="presetDesktopBtn">Desktop</button>
+            </div>
+          </div>
+
+          <div class="custom-path-group">
+            <label for="customFolderInput">Custom Path:</label>
+            <input type="text" id="customFolderInput" placeholder="/home/user/MyFolder or C:\Users\..." autocomplete="off">
+          </div>
+
+          <div class="folder-modal-footer">
+            <button type="button" id="btnSaveFolder" class="primary-send-btn">
+              <span>Apply Save Folder</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
